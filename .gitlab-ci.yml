@@ -1,0 +1,28 @@
+---
+stages:
+  - deploy
+
+variables:
+  PIP_CACHE_DIR: "$CI_PROJECT_DIR/.pip"
+  GIT_STRATEGY: clone
+
+cache:
+    paths:
+    - .pip/
+    - .env/
+
+deploy:
+  stage: deploy
+  only:
+    - master
+  script:
+    - pip3 install virtualenv
+    - python3 -m virtualenv .env
+    - source .env/bin/activate
+    - pip install -r requirements.txt
+    - ansible-galaxy install -r requirements.yml -f
+    - python -V
+    - pip -V
+    - ansible --version
+    - ansible-playbook playbook.yml -i hosts.ini
+...
