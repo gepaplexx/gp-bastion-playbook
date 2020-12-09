@@ -1,0 +1,24 @@
+---
+- hosts: gp_bastion
+  become: true
+  pre_tasks:
+  
+    - name: Update apt cache
+      apt:
+        update_cache: yes
+
+  tasks:
+
+    - name: Install required packages
+      apt:
+        name: 
+          - git
+          - python3
+          - python3-pip
+
+    - name: Include ckaserer.gitlab_runner
+      include_role:
+        name: ckaserer.gitlab_runner
+      vars:
+        arch: "amd64"
+...
