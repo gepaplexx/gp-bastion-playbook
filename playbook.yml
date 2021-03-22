@@ -140,5 +140,18 @@
         src: https://github.com/actions/runner/releases/download/v2.277.1/actions-runner-linux-x64-2.277.1.tar.gz
         remote_src: yes
         dest: ${HOME}/actions-runner/
+    - name: Print instructions to activate github runner
+      ansible.builtin.debug:
+        msg:
+          - "Go to: https://github.com/organizations/gepaplexx/settings/actions/add-new-runner and copy the token."
+          - "Login to bastion host with ansible user"
+          - "cd actions-runner"
+          - "set environment-name:"
+          - "ENVIRONMENT_NAME="
+          - './config.sh --token <the copied token> --labels environment-${ENVIRONMENT_NAME} --name ${ENVIRONMENT_NAME}-bastion --url https://github.com/gepaplexx  --unattended'
+          - "start runner as service:"
+          - "sudo ./svc.sh install"
+          - "sudo ./svc.sh start"
+          - 'check if runner is online: https://github.com/organizations/gepaplexx/settings/actions with name ${ENVIRONMENT_NAME}-bastion'
 
 ...
