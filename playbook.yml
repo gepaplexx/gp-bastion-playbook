@@ -1,5 +1,17 @@
 ---
-- hosts: gp_bastion
+- name: Prepare hosts for ansible
+  tags: prepare-hosts
+  hosts: all
+  become: yes
+  gather_facts: no
+
+  tasks:
+    - name: Install python with raw module
+      raw: apt update && apt install -y python3
+
+- name: Install needed packages and tools
+  tags: prepare-hosts
+  hosts: bastion
   become: true
 
   vars_files:
@@ -27,9 +39,9 @@
       apt:
         name: 
           - git
-          - python3
           - python3-pip
           - helm
+          - docker.io
 
     - name: Download oc client
       get_url: 
@@ -41,6 +53,7 @@
       unarchive:
         src: /tmp/oc.tar.gz
         dest: /tmp/
+        remote_src: yes
 
     - name: Copy oc binary to /usr/local/bin
       copy:
@@ -49,9 +62,83 @@
         mode: "0777"
         remote_src: yes
 
-    - name: Include ckaserer.gitlab_runner
-      include_role:
-        name: ckaserer.gitlab_runner
-      vars:
-        arch: "amd64"
+    - name: "Ensure service docker is started and enabled"
+      service:
+        name: "docker"
+        enabled: true
+
+- name: create users
+  tags: create-users
+  hosts: all
+  become: true
+  vars:
+    users:
+      - gituser: ckaserer
+        localuser: ckaserer
+      - gituser: hwirnsberger
+        localuser: hwirnsberger
+      - gituser: gattma
+        localuser: mgattringer
+      - gituser: mario-oberwalder
+        localuser: moberwalder
+      - gituser: rwrabel
+        localuser: rwrabel
+      - gituser: dazierler
+        localuser: rzierler
+  tasks:
+    - name: Add User
+      ansible.builtin.user:
+        name: "{{item.localuser}}"
+        groups: sudo
+        append: yes
+        shell: /bin/bash
+      with_items: "{{users}}"
+    - name: Add docker group to user
+      when: "'bastion' == inventory_hostname"
+      ansible.builtin.user:
+        name: "{{item.localuser}}"
+        groups: docker
+        append: yes
+      with_items: "{{users}}"
+    - name: Set authorized keys taken from url
+      ansible.posix.authorized_key:
+        user: "{{item.localuser}}"
+        state: present
+        key: "https://github.com/{{item.gituser}}.keys"
+      with_items: "{{users}}"
+    - name: Add User Ansible
+      ansible.builtin.user:
+        name: ansible
+        groups: sudo
+        append: yes
+        generate_ssh_key: true
+        shell: /bin/bash
+      register: my_ansible_user
+    - name: Add docker group to user ansible
+      when: "'bastion' == inventory_hostname"
+      ansible.builtin.user:
+        name: ansible
+        groups: docker
+        append: yes
+    - name: Set authorized keys
+      ansible.posix.authorized_key:
+        user: ansible
+        state: present
+        key: "{{ hostvars['bastion']['my_ansible_user']['ssh_public_key'] }}"
+
+- name: prepare github action runner
+  hosts: bastion
+  become: yes
+  become_user: ansible
+  tasks:
+    - name: create folder in homedirectory from user ansible
+      file:
+        path: ${HOME}/actions-runner
+        state: directory
+    - name: download github runner
+      ansible.builtin.unarchive:
+        src: https://github.com/actions/runner/releases/download/v2.277.1/actions-runner-linux-x64-2.277.1.tar.gz
+        remote_src: yes
+        dest: ${HOME}/actions-runner/
+
 ...
