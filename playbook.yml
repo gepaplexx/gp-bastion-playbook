@@ -3,11 +3,32 @@
   tags: prepare-hosts
   hosts: all
   become: yes
-  gather_facts: no
 
   tasks:
-    - name: Install python with raw module
-      raw: apt update && apt install -y python3
+    - lineinfile:
+        path: /etc/sudoers
+        state: present
+        regexp: '^%sudo'
+        line: '%sudo ALL=(ALL) NOPASSWD: ALL'
+        validate: 'visudo -cf %s'
+
+- name: Install needed packages and tools for service
+  tags: prepare-hosts
+  hosts: service
+  become: true
+
+  pre_tasks:
+
+    - name: Update apt cache
+      apt:
+        update_cache: yes
+
+  tasks:
+
+    - name: Install required packages
+      apt:
+        name: 
+          - mlocate
 
 - name: Install needed packages and tools
   tags: prepare-hosts
@@ -42,6 +63,7 @@
           - python3-pip
           - helm
           - docker.io
+          - mlocate
 
     - name: Download oc client
       get_url: 
@@ -124,12 +146,25 @@
       ansible.posix.authorized_key:
         user: ansible
         state: present
-        key: "{{ hostvars['bastion']['my_ansible_user']['ssh_public_key'] }}"
+        key: "{{ item }}"
+      with_items:
+        - "{{ hostvars['bastion']['my_ansible_user']['ssh_public_key'] }}"
+        - "ssh-rsa AAAAB3NzaC1yc2EAAAABJQAAAQEAg+6+erKHD5vmnd9gomvxNWb+zeBi8zJTN0pyiSArsqx46Hr2uFQJ5xax0TKnIZZ7mE5sd+ljtvisD1uKPZftBvZHlvSr+17j1JuAKw0U07Yiji+ZQZqpIoMI74xRMPWQSKSPAARnqNOIgq3j/O4E6uYHgSgcyNB0jxWOh2i8ehlbdSMAfUExIyr8dYni1PmrvfVClayfUFkVdwFExfjX9pZeurdO3G9vkngY2F3BWdmeKTSYp7HKWWiE585RPg5jLdptK4DCp6e4J61AfI/P6+w4OmKh3EK8E4W3sOpRq3K9nYEAk7BF8LLUtqGqZLg0kytqfJVtmHL11OYs82SQCw== ansible-backup 20210324"
+    - name: Add known_hosts to ansible
+      become_user: ansible
+      when: "'bastion' == inventory_hostname"
+      ansible.builtin.shell: "ssh-keyscan {{network_ip}}.2 > ${HOME}/.ssh/known_hosts"
+    - name: Add known_hosts to ansible
+      become_user: ansible
+      when: "'bastion' == inventory_hostname"
+      ansible.builtin.shell: "ssh-keyscan {{network_ip}}.3 >> ${HOME}/.ssh/known_hosts"
+      
 
 - name: prepare github action runner
   hosts: bastion
   become: yes
   become_user: ansible
+  tags: github-action
   tasks:
     - name: create folder in homedirectory from user ansible
       file:
