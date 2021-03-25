@@ -3,7 +3,6 @@
   tags: prepare-hosts
   hosts: all
   become: yes
-
   tasks:
     - lineinfile:
         path: /etc/sudoers
@@ -12,50 +11,41 @@
         line: '%sudo ALL=(ALL) NOPASSWD: ALL'
         validate: 'visudo -cf %s'
 
+
 - name: Install needed packages and tools for service
   tags: prepare-hosts
   hosts: service
-  become: true
-
+  become: yes
   pre_tasks:
-
     - name: Update apt cache
       apt:
         update_cache: yes
-
   tasks:
-
     - name: Install required packages
       apt:
         name: 
           - mlocate
 
+
 - name: Install needed packages and tools
   tags: prepare-hosts
   hosts: bastion
-  become: true
-
+  become: yes
   vars_files:
     - default.config.yml
-
   pre_tasks:
-
     - name: Add apt-key for Helm
       apt_key:
         url: "{{ helm_apt_key_url }}"
-
     - name: Add repo for Helm
       apt_repository:
         repo: "{{ helm_repo }}"
         state: present
         filename: helm-stable-debian
-
     - name: Update apt cache
       apt:
         update_cache: yes
-
   tasks:
-
     - name: Install required packages
       apt:
         name: 
@@ -64,35 +54,32 @@
           - helm
           - docker.io
           - mlocate
-
     - name: Download oc client
       get_url: 
         url: "{{ oc_binary_url }}"
         dest: /tmp/oc.tar.gz
         mode: '0777'
-
     - name: Extract oc client
       unarchive:
         src: /tmp/oc.tar.gz
         dest: /tmp/
         remote_src: yes
-
     - name: Copy oc binary to /usr/local/bin
       copy:
         src: /tmp/oc
         dest: /usr/local/bin/oc
         mode: "0777"
         remote_src: yes
-
     - name: "Ensure service docker is started and enabled"
       service:
         name: "docker"
         enabled: true
 
+
 - name: create users
   tags: create-users
   hosts: all
-  become: true
+  become: yes
   vars:
     users:
       - gituser: ckaserer
