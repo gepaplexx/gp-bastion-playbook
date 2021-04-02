@@ -1,3 +1,5 @@
+# Deprecated in favor of gepaplexx/openshift
+
  	1. Hosts.ini 
 	set [play:vars] accordingly
    
